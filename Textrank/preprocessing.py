@@ -99,9 +99,9 @@ class Preprocessing:
 
         Returns:
             List[List[(str, str, str)]]: List of noun phrases in the form of list of (token, tag, lemma) pairs.
-        """      
-  
-        np_chunks = [self.np_grammar_parser.parse(sentence) for sentence in tokenized_tagged_sentences]
+        """
+
+        np_chunks = [self.np_grammar_parser.parse(sentence) for sentence in tokenized_tagged_sentences if len(sentence) > 0]
         sentence_np_chunks = []
         for sentence_chunk in np_chunks:
             sentence_nouns = []

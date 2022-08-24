@@ -5,7 +5,17 @@ TextRank is an unsupervised graph-based model that computes importance for each 
 ## Usage
 
 ```
-python Textrank/textrank.py
+python Textrank/textrank.py -h
+usage: textrank.py [-h] [-k K] [-path PATH] [-document DOCUMENT]
+
+optional arguments:
+  -h, --help          show this help message and exit
+  -k K                number of keyword candidates to extract. default to 10
+  -path PATH          path to the lyrics csv file, default to none
+  -document DOCUMENT  document to extract keywords from. default to none
+
+sample usage:
+python Textrank/textrank.py -k 20 -document "data/lyrics_dataset.csv"
 ```
 
 
