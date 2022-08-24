@@ -6,16 +6,19 @@ TextRank is an unsupervised graph-based model that computes importance for each 
 
 ```
 python Textrank/textrank.py -h
-usage: textrank.py [-h] [-k K] [-path PATH] [-document DOCUMENT]
+usage: textrank.py [-h] [-k K] [-window_size WINDOW_SIZE] [-path PATH] [-document DOCUMENT] [-use_spacy]
 
 optional arguments:
-  -h, --help          show this help message and exit
-  -k K                number of keyword candidates to extract. default to 10
-  -path PATH          path to the lyrics csv file, default to none
-  -document DOCUMENT  document to extract keywords from. default to none
+  -h, --help            show this help message and exit
+  -k K                  number of keyword candidates to extract. default to 10
+  -window_size WINDOW_SIZE
+                        window size to add edge. default to 2
+  -path PATH            path to the lyrics csv file, default to none
+  -document DOCUMENT    document to extract keywords from. default to none
+  -use_spacy            use spacy language model for preprocessing
 
 sample usage:
-python Textrank/textrank.py -k 20 -document "data/lyrics_dataset.csv"
+python Textrank/textrank.py -k 20 -document "data/lyrics_dataset.csv" -use_spacy
 ```
 
 

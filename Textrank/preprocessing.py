@@ -20,7 +20,8 @@ class Preprocessing:
                  tokenizer=nltk.tokenize.word_tokenize,
                  tagger=nltk.tag.pos_tag,
                  lemmatizer = nltk.stem.WordNetLemmatizer().lemmatize,
-                 np_grammar=GRAMMAR_1_NLTK):
+                 np_grammar=GRAMMAR_1_NLTK,
+                 nlp=None):
         """ Initialize a Preprocessing object
 
         Args:
@@ -29,6 +30,7 @@ class Preprocessing:
             tagger (function, optional): NLTK-style tagger. Defaults to nltk.tag.pos_tag.
             lemmatizer (function, optional): NLTK-style lemmatizer. Defaults to nltk.stem.WordNetLemmatizer().lemmatize.
             np_grammar (str, optional): Grammar for noun parsing. Defaults to GRAMMAR_1_NLTK.
+            nlp (spacy.Language, optional): spacy Language model for preprocessing. Defaults to None.
         """
 
         self.stopwords = set(nltk.corpus.stopwords.words("english"))
@@ -39,6 +41,8 @@ class Preprocessing:
 
         self.np_grammar = np_grammar
         self.np_grammar_parser = nltk.RegexpParser(self.np_grammar)
+
+        self.nlp = nlp
 
         self.pipeline(document)
 
@@ -52,7 +56,8 @@ class Preprocessing:
             List[str]: List of cleaned sentences.
         """
 
-        sentences = document.replace('\n', '. ').split('. ')
+        # sentences = document.replace('\n', '. ').split('. ')
+        sentences = nltk.tokenize.sent_tokenize(document.replace('\n', '. '))
         for idx, sentence in enumerate(sentences):
             sentences[idx] = re.sub("[^a-zA-Z0-9'.,\- ]", '', sentence)#.lower()
         return sentences
@@ -139,12 +144,17 @@ class Preprocessing:
             document (str): document to preprocess.
         """
 
-        sentences = self.clean(document)
-        tokenized_sentences = self.tokenize(sentences)
-        tokenized_tagged_sentences = self.tag(tokenized_sentences)
+        if self.nlp is not None:
+            spacy_doc = self.nlp(document.lower())
+            self.sentences = [[(spacy_doc[token_idx].text, spacy_doc[token_idx].pos_, spacy_doc[token_idx].lemma_) for token_idx in range(sent.start, sent.end)] for sent in spacy_doc.sents]
+            self.np_chunks = [[[(token.text, token.pos_, token.lemma_) for token in noun_chunk] for noun_chunk in spacy_doc.noun_chunks]]
+        else:
+            sentences = self.clean(document)
+            tokenized_sentences = self.tokenize(sentences)
+            tokenized_tagged_sentences = self.tag(tokenized_sentences)
 
-        self.sentences = [[(word, tag, self.lemmatizer(word).lower()) for (word, tag) in sentence] for sentence in tokenized_tagged_sentences]
-        self.np_chunks = self.get_np_chunks(tokenized_tagged_sentences)
+            self.sentences = [[(word, tag, self.lemmatizer(word).lower()) for (word, tag) in sentence] for sentence in tokenized_tagged_sentences]
+            self.np_chunks = self.get_np_chunks(tokenized_tagged_sentences)
 
 
 if __name__ == '__main__':

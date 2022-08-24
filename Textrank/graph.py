@@ -1,34 +1,24 @@
-from email.policy import default
 import math
 from collections import defaultdict
 
 import matplotlib.pyplot as plt
 import networkx as nx
 
-# Desired tags for graph construction
-
-# nltk tags
-DISIRED_TAGS_1_NLTK =           ["JJ", "NN", "NNS", "NNP", "NNPS"]
-DISIRED_TAGS_2_NLTK =           ["JJ", "NN", "NNS", "NNP", "NNPS", "VB", "VBG", "VBD", "VBN", "VBP", "VBZ"]
-
-# universal tags
-DISIRED_TAGS_1_UNIVERSAL =      ["ADJ", "NOUN", "PROPN"]
-DISIRED_TAGS_2_UNIVERSAL =      ["ADJ", "NOUN", "PROPN", "VERB"]
-
 
 class TextrankGraph:
 
-    def __init__(self, preprocessed, k=10, modified=True, desired_tags=DISIRED_TAGS_1_NLTK):        
+    def __init__(self, preprocessed, desired_tags, k=10, window_size=2, modified=True):        
         """ Initialize a TextrankGraph object
 
         Args:
             preprocessed (Preprocessed): A Preprocessed object storing info of the document.
+            desired_tags (List[str]): Desired tags to keep in the graph..
             k (int, optional): Number of key phrase candidates. Defaults to 10.
             modified (bool, optional): Use modified post-processing. Defaults to True.
-            desired_tags (List[str], optional): Desired tags to keep in the graph. Defaults to DISIRED_TAGS_1_NLTK.
         """
 
         self.k = k
+        self.window_size = window_size
         self.modified = modified
 
         self.desired_tags = desired_tags
@@ -41,12 +31,11 @@ class TextrankGraph:
         self.pipeline()
 
 
-    def process_sentence(self, sentence, window_size=4):
+    def process_sentence(self, sentence):
         """ Process a sentence to initialize the graph.
 
         Args:
             sentence (List[(str, str, str)]): A sentence in the form of (token, tag, lemma) pairs.
-            window_size (int, optional): Window size to create edges for adjacent words. Defaults to 4.
         """
 
         for idx, (_, tag, lemma) in enumerate(sentence):
@@ -62,7 +51,7 @@ class TextrankGraph:
             if not node_id in self.graph.nodes:
                 self.graph.add_node(node_id)
 
-            for prev_idx in range(idx-1, max(-1, idx-window_size), -1):
+            for prev_idx in range(idx-1, max(-1, idx-self.window_size), -1):
                 _, prev_tag, prev_lemma = sentence[prev_idx]
                 prev_key = (prev_lemma, prev_tag)
                 if prev_key not in self.seen_lemma or prev_key == key:
@@ -91,7 +80,7 @@ class TextrankGraph:
         candidate_keys = {list(self.seen_lemma.keys())[candidate[0]]: candidate[1] for candidate in candidates}
 
         merged_level = 1
-        max_merged_level = 5
+        max_merged_level = 3
         while True:
             found_new = False
             for sentence in self.preprocessed.sentences:
@@ -135,12 +124,12 @@ class TextrankGraph:
 
         phrase_len = len(phrase)
 
+        if phrase_len == 0:
+            return candidates
+
         rank = 0
         non_lemma = 0
         merged_key = []
-
-        if phrase_len == 0:
-            return candidates
 
         for (_, tag, lemma) in phrase:
             key = (lemma, tag)
@@ -150,6 +139,9 @@ class TextrankGraph:
                 merged_key.append(key)
             else:
                 non_lemma += 1
+
+        if len(merged_key) <= 0:
+            return candidates
 
         # https://github.com/DerwenAI/pytextrank/blob/7cc079b1856e59cc3e4b53268a01b5e8893ca1ae/pytextrank/base.py#L582
         discount = phrase_len / (phrase_len + (2.0 * non_lemma) + 1.0)
