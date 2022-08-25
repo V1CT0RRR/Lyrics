@@ -147,12 +147,18 @@ class TextrankGraph:
         discount = phrase_len / (phrase_len + (2.0 * non_lemma) + 1.0)
         rank = math.sqrt(rank / (phrase_len + non_lemma)) * discount
 
-        merged_key = tuple(merged_key) if len(merged_key) > 1 else tuple(merged_key[0])
+        merged_key = tuple((merged_key)) if len(merged_key) > 1 else tuple(merged_key[0])
 
         self.seen_lemma[merged_key] += 1
 
+        # if merged_key not in candidates.keys():
+        #     candidates[merged_key] = rank
+
+        phrase_text = " ".join([word for (word, _, _) in phrase]).lower().replace("'", "")
         if merged_key not in candidates.keys():
-            candidates[merged_key] = rank
+            candidates[merged_key] = set([(phrase_text, rank)])
+        else:
+            candidates[merged_key].add((phrase_text, rank))
 
         return candidates
 
@@ -172,11 +178,18 @@ class TextrankGraph:
             for np_chunk in sentence:
                 candidates = self.add_phrase_rank(np_chunk, textrank, candidates)
 
-        candidates = sorted(candidates.items(), key=lambda x: x[1], reverse=True)[:self.k]
+        results = []
+        for key, rank_set in candidates.items():
+            max_phrase, max_rank = max(rank_set, key=lambda x: x[1])
+            results.append((max_phrase, max_rank))
 
-        candidates = [(' '.join([word for (word, _) in key]) if type(key[0]) != str else key[0], rank) for key, rank in candidates]
+        return sorted(results, key=lambda x: x[1], reverse=True)[:self.k]
 
-        return candidates
+        # candidates = sorted(candidates.items(), key=lambda x: x[1], reverse=True)[:self.k]
+
+        # candidates = [(' '.join([word for (word, _) in key]) if type(key[0]) != str else key[0], rank) for key, rank in candidates]
+
+        # return candidates
 
     
     def draw_graph(self):
