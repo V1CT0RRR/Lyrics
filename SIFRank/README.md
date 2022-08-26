@@ -2,6 +2,15 @@
 
 SIFRank is an unsupervised keyword extraction algorithm that relies on text embedding using pretrained model from larger corpus. The key idea is to compare the embedding of each candidate key phrase with the embedding of the whole document to find the most similar keywords that best summarize the document. 
 
+## Environment
+```
+python 3.6
+scikit-learn 0.22.2
+allennlp 0.8.4
+overrides 3.1.0
+```
+
+
 ## Usage
 
 ```
@@ -16,7 +25,7 @@ ELMO weights: ```elmo_2x4096_512_2048cnn_2xhighway_options.json``` and ```elmo_2
 We perform the standard preprocessing procedure on the document with nltk, including character cleaning, tokenizing, pos-tagging, lemmatizing and noun-phrase chunk extraction using fixed grammar. Note that sentence splitting is not necessary for keyword extraction as the embedding of the whole document is computed for comparison.
 
 ### Embedding computation
-Word weights are initialized with vocabulary extracted from English wikipedia: ```data/enwiki_vocab_min200.txt```.
+Word weights are initialized with vocabulary extracted from English wikipedia: ```models/enwiki_vocab_min200.txt```.
 The embeddor we select to use for now is ELMO. 
 
 <!-- ### Graph construction

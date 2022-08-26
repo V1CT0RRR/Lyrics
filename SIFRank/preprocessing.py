@@ -16,35 +16,54 @@ GRAMMAR_3_UNIVERSAL =   "NP: {<NOUN|ADJ>*<NOUN*>}"
 
 
 class Preprocessing:
-    def __init__(self, document, tokenizer=None, tagger=None, np_grammar=None):
+    def __init__(self, document, 
+                 sent_tokenizer=nltk.tokenize.sent_tokenize,
+                 tokenizer=nltk.tokenize.word_tokenize,
+                 tagger=nltk.tag.pos_tag,
+                 np_grammar=GRAMMAR_3_NLTK,
+                 nlp=None):
 
         self.stopwords = set(nltk.corpus.stopwords.words("english"))
 
-        self.tokenizer = nltk.tokenize.word_tokenize if not tokenizer else tokenizer
-        self.tagger = nltk.tag.pos_tag if not tagger else tagger
+        self.tokenizer = tokenizer
+        self.sent_tokenizer = sent_tokenizer
+        self.tagger = tagger
 
         # https://www.nltk.org/book_1ed/ch07.html
         # https://github.com/sunyilgdx/SIFRank/blob/274d84b797c449e66c414d887f15d9b40114c746/model/extractor.py#L10
-        self.np_grammar = GRAMMAR_3_NLTK if not np_grammar else np_grammar 
+        self.np_grammar = np_grammar 
         self.np_grammar_parser = nltk.RegexpParser(self.np_grammar)
+
+        self.nlp = nlp
 
         self.pipeline(document)
 
+
     def clean(self, document):
-        document = re.sub("[^a-zA-Z0-9' ]", '', document)#.lower()
-        return document
+        sentences = nltk.tokenize.sent_tokenize(document.replace('\n', '. '))
+        for idx, sentence in enumerate(sentences):
+            sentences[idx] = re.sub("[^a-zA-Z0-9'.,\- ]", '', sentence)#.lower()
+        return sentences
 
-    def tokenize(self, text, remove_stopwords=True):
-        tokens = self.tokenizer(text)
-        if remove_stopwords:
-            return [token for token in tokens if token not in self.stopwords]
-        return tokens
 
-    def tag(self, tokens):
-        return self.tagger(tokens)
+    def tokenize(self, sentences, remove_stopwords=False):
+        tokenized_sentences = []
+        for sentence in sentences:
+            if len(sentence) <= 0:
+                continue
+            tokens = self.tokenizer(sentence)
+            if remove_stopwords:
+                tokens = [token for token in tokens if token not in self.stopwords]
+            tokenized_sentences.append(tokens)
+        return tokenized_sentences
 
-    def get_np_chunks(self, tokenized_tagged_sentences):
-        np_chunks = self.np_grammar_parser.parse(tokenized_tagged_sentences)
+
+    def tag(self, tokenized_sentences):
+        return [self.tagger(tokenized_sentence) for tokenized_sentence in tokenized_sentences]
+
+
+    def get_np_chunks(self, tagged_tokens):
+        np_chunks = self.np_grammar_parser.parse(tagged_tokens)
         candidates = []
         for token in np_chunks:
             if isinstance(token, nltk.tree.Tree) and token._label == "NP":
@@ -54,17 +73,20 @@ class Preprocessing:
                 candidates.append((np_phrase, (start, end)))
         return candidates
 
+
     def pipeline(self, document):
 
         '''
         Step 1: The document is tokenized and part-of-speech
         tagged to sequence of tokens with part-of-speech tags.
         '''
-        document = self.clean(document)
-        self.tokenized_sentences = self.tokenize(document, remove_stopwords=False)
-        self.tokenized_tagged_sentences = self.tag(self.tokenized_sentences)
+        sentences = self.clean(document)
+        self.tokenized_sentences = self.tokenize(sentences)
+        self.tagged_tokenized_sentences = self.tag(self.tokenized_sentences)
 
-        self.tokenized_tagged_sentences = [(token, tag, idx) for idx, (token, tag) in enumerate(self.tokenized_tagged_sentences)]
+        self.tokens = [token for sentence in self.tokenized_sentences for token in sentence]
+        self.tagged_tokens = [tagged_token for sentence in self.tagged_tokenized_sentences for tagged_token in sentence]
+        self.tagged_tokens = [(token, tag, idx) for idx, (token, tag) in enumerate(self.tagged_tokens)]
 
         '''
         Step 2: Extract the noun phrases (NPs) from the sequence 
@@ -72,7 +94,7 @@ class Preprocessing:
         (pattern wrote by regular expression). The NPs extracted 
         from the document are the candidate keyphrases.
         '''
-        self.np_candidates = self.get_np_chunks(self.tokenized_tagged_sentences)
+        self.np_candidates = self.get_np_chunks(self.tagged_tokens)
 
         return self.np_candidates
 
