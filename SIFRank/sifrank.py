@@ -203,27 +203,5 @@ class SIFRank:
 
 if __name__ == '__main__':
     text = "Discrete output feedback sliding mode control of second order systems - a moving switching line approach The sliding mode control systems (SMCS) for which the switching variable is designed independent of the initial conditions are known to be sensitive to parameter variations and extraneous disturbances during the reaching phase. For second order systems this drawback is eliminated by using the moving switching line technique where the switching line is initially designed to pass the initial conditions and is subsequently moved towards a predetermined switching line. In this paper, we make use of the above idea of moving switching line together with the reaching law approach to design a discrete output feedback sliding mode control. The main contributions of this work are such that we do not require to use system states as it makes use of only the output samples for designing the controller. and by using the moving switching line a low sensitivity system is obtained through shortening the reaching phase. Simulation results show that the fast output sampling feedback guarantees sliding motion similar to that obtained using state feedback"
-    
-    text = '''
-    Does social capital determine innovation? To what extent?
-This paper deals with two questions: Does social capital determine innovation
-	in manufacturing firms? If it is the case, to what extent? To deal with
-	these questions, we review the literature on innovation in order to see
-	how social capital came to be added to the other forms of capital as an
-	explanatory variable of innovation. In doing so, we have been led to
-	follow the dominating view of the literature on social capital and
-	innovation which claims that social capital cannot be captured through
-	a single indicator, but that it actually takes many different forms
-	that must be accounted for. Therefore, to the traditional explanatory
-	variables of innovation, we have added five forms of structural social
-	capital (business network assets, information network assets, research
-	network assets, participation assets, and relational assets) and one
-	form of cognitive social capital (reciprocal trust). In a context where
-	empirical investigations regarding the relations between social capital
-	and innovation are still scanty, this paper makes contributions to the
-	advancement of knowledge in providing new evidence regarding the impact
-	and the extent of social capital on innovation at the two
-	decisionmaking stages considered in this study
-    '''
 
     SIFRank(doc_seg=True).pipeline(document=text)

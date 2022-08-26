@@ -62,24 +62,24 @@ These\DT criteria\NNS and\CC the\DT corresponding\JJ algorithms\NN for\IN constr
 Computing similarity of phrase embeddings and document embedding gives the following keywords that best summarize the document.
 
 ```
-0.90793: switching line technique
-0.90002: sliding mode control system SMCS
-0.89852: predetermined switching line
-0.89791: discrete output feedback
-0.87867: switching line
-0.86175: mode control
-0.85978: low sensitivity system
-0.85822: switching variable
-0.83122: phase Simulation result
-0.82286: extraneous disturbance
-0.82159: Discrete output
-0.82133: second order system
-0.82039: fast output
-0.81772: output sample
-0.81478: feedback guarantee
-0.81011: law approach
-0.80955: mode
-0.80401: main contribution
-0.79626: initial condition
-0.78824: line
+0.89675: switching line technique
+0.89144: sliding mode control system SMCS
+0.88118: discrete output feedback
+0.86566: switching line
+0.86443: predetermined switching line
+0.85141: switching variable
+0.84245: low sensitivity system
+0.83624: mode control
+0.82002: Discrete output
+0.81730: feedback guarantee
+0.81401: fast output
+0.79614: extraneous disturbance
+0.78881: law approach
+0.78881: output sample
+0.77045: variation
+0.77012: initial condition
+0.76792: state feedback
+0.76377: line
+0.76073: drawback
+0.75475: second order system
 ```
