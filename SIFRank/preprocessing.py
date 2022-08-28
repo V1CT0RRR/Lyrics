@@ -76,27 +76,29 @@ class Preprocessing:
 
     def pipeline(self, document):
 
-        '''
-        Step 1: The document is tokenized and part-of-speech
-        tagged to sequence of tokens with part-of-speech tags.
-        '''
-        sentences = self.clean(document)
-        self.tokenized_sentences = self.tokenize(sentences)
-        self.tagged_tokenized_sentences = self.tag(self.tokenized_sentences)
+        if self.nlp is None:
+            sentences = self.clean(document)
+            self.tokenized_sentences = self.tokenize(sentences)
+            self.tagged_tokenized_sentences = self.tag(self.tokenized_sentences)
 
-        self.tokens = [token for sentence in self.tokenized_sentences for token in sentence]
-        self.tagged_tokens = [tagged_token for sentence in self.tagged_tokenized_sentences for tagged_token in sentence]
-        self.tagged_tokens = [(token, tag, idx) for idx, (token, tag) in enumerate(self.tagged_tokens)]
+            self.tokens = [token for sentence in self.tokenized_sentences for token in sentence]
+            self.tagged_tokens = [tagged_token for sentence in self.tagged_tokenized_sentences for tagged_token in sentence]
+            self.tagged_tokens = [(token, tag, idx) for idx, (token, tag) in enumerate(self.tagged_tokens)]
 
-        '''
-        Step 2: Extract the noun phrases (NPs) from the sequence 
-        according to the part-of-speech tags using NP-chunker 
-        (pattern wrote by regular expression). The NPs extracted 
-        from the document are the candidate keyphrases.
-        '''
-        self.np_candidates = self.get_np_chunks(self.tagged_tokens)
+            self.np_candidates = self.get_np_chunks(self.tagged_tokens)
 
-        return self.np_candidates
+        else:
+            spacy_doc = self.nlp(document.lower())
+
+            self.tokenized_sentences = [[spacy_doc[token_idx].text for token_idx in range(sent.start, sent.end)] for sent in spacy_doc.sents]
+            self.tagged_tokenized_sentences = [[(spacy_doc[token_idx].text, spacy_doc[token_idx].pos_) for token_idx in range(sent.start, sent.end)] for sent in spacy_doc.sents]
+
+            self.tokens = [token for sentence in self.tokenized_sentences for token in sentence]
+            self.tagged_tokens = [tagged_token for sentence in self.tagged_tokenized_sentences for tagged_token in sentence]
+            self.tagged_tokens = [(token, tag, idx) for idx, (token, tag) in enumerate(self.tagged_tokens)]
+
+            self.np_candidates = [(noun_chunk.text, (noun_chunk.start, noun_chunk.end)) for noun_chunk in spacy_doc.noun_chunks]
+
 
     def show_candidates(self):
         for (np_phrase, (start, end)) in self.np_candidates:

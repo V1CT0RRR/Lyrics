@@ -1,8 +1,9 @@
 from pathlib import Path
-import os
+import os, math
 
 import nltk
 import torch
+import spacy
 
 from allennlp.commands.elmo import ElmoEmbedder
 
@@ -26,6 +27,7 @@ class SIFRank:
     def __init__(self, k=10,
                  doc_seg=True,
                  emb_align=True,
+                 sifrank_plus=True,
                  nlp=None,
                  data_path_word_weight = os.path.join(dirname, "../models/enwiki_vocab_min200.txt"),
                  data_path_word_weight_inspec = os.path.join(dirname, "../models/inspec_vocab.txt"),
@@ -36,7 +38,8 @@ class SIFRank:
         Args:
             k (int, optional): Number of keywords to extract. Defaults to 10.
             doc_seg (bool, optional): Use document segmentation. Defaults to True.
-            emb_align (bool, optional): Use embedding alignment. Defaults to False.
+            emb_align (bool, optional): Use embedding alignment. Defaults to True.
+            sifrank_plus (bool, optional): Use SIFRank+ with position score. Defaults to True.
             nlp (_type_, optional): Spacy language model for preprocessing. Defaults to None.
             data_path_word_weight (str, optional): path to word weight file. Defaults to os.path.join(dirname, "../models/enwiki_vocab_min200.txt").
             data_path_word_weight_inspec (str, optional): path to word weight inspec file. Defaults to os.path.join(dirname, "../models/inspec_vocab.txt").
@@ -44,7 +47,7 @@ class SIFRank:
             data_path_elmo_options (str, optional): path to elmo options file. Defaults to os.path.join(dirname, "../models/elmo/elmo_2x4096_512_2048cnn_2xhighway_options.json").
         """
 
-        self.considered_tags = DISIRED_TAGS_3_NLTK
+        self.considered_tags = DISIRED_TAGS_3_NLTK if not nlp else DISIRED_TAGS_2_UNIVERSAL
         self.lemmatizer = nltk.WordNetLemmatizer().lemmatize
 
         self.k = k
@@ -54,6 +57,7 @@ class SIFRank:
 
         self.doc_seg = doc_seg
         self.emb_align = emb_align
+        self.sifrank_plus = sifrank_plus
 
         self.nlp = nlp
 
@@ -278,6 +282,30 @@ class SIFRank:
             result[i] = result[i] / float(num_words)
         return result
 
+
+    def get_position_score(self, np_candidates, position_bias=3.4):
+        """ Compute position score for each candidate
+
+        Args:
+            np_candidates (List(tuple(str, tuple(int, int)))): Candidate list from Preprocessed
+            position_bias (float, optional): Position bias. Defaults to 3.4.
+
+        Returns:
+            dict: maps candidate strings to their position scores
+        """
+
+        position_scores = {}
+        for idx, (candidate, _) in enumerate(np_candidates):
+            if candidate not in position_scores:
+                position_scores[candidate] = 1 / (float(idx) + 1 + position_bias)
+
+        score_exp_sum = sum([math.exp(score) for score in position_scores.values()])
+        for candidate, value in position_scores.items():
+            position_scores[candidate] = math.exp(value) / score_exp_sum
+
+        return position_scores
+
+
     def get_sent_candidate_embedding(self, preprocessed):
         """ Get sentence embedding and candidate embeddings.
 
@@ -304,7 +332,7 @@ class SIFRank:
         sent_embedding = self.get_tokenized_sent_weight_average(preprocessed.tokens, preprocessed.tagged_tokens, word_weight, elmo_embeddings[0])
 
         candidate_embedding_list = []
-        for candidate, (start, end) in preprocessed.np_candidates:
+        for _, (start, end) in preprocessed.np_candidates:
             candidate_embedding = self.get_candidate_weight_average(word_weight, elmo_embeddings[0], start, end)
             candidate_embedding_list.append(candidate_embedding)
 
@@ -321,7 +349,10 @@ class SIFRank:
 
         Returns:
             List(tuple(str, float)): candidates and their scores
-        """        
+        """
+
+        position_score = self.get_position_score(preprocessed.np_candidates)
+        average_score = sum(position_score.values()) / float(len(position_score))
 
         candidate_distances = []
         for idx, candidate_embedding in enumerate(candidate_embedding_list):
@@ -331,16 +362,18 @@ class SIFRank:
         dict_candidate_distances = {}
         for idx in range(len(candidate_distances)):
             candidate, _ = preprocessed.np_candidates[idx]
-            candidate_norm = ' '.join([nltk.WordNetLemmatizer().lemmatize(word) for word in candidate.split()])
             if candidate in dict_candidate_distances:
-                dict_candidate_distances[candidate_norm].append(candidate_distances[idx])
+                dict_candidate_distances[candidate].append(candidate_distances[idx])
             else:
-                dict_candidate_distances[candidate_norm] = [candidate_distances[idx]]
+                dict_candidate_distances[candidate] = [candidate_distances[idx]]
 
-        for key, value in dict_candidate_distances.items():
-            dict_candidate_distances[key] = sum(value) / len(value)
+        for candidate, distance in dict_candidate_distances.items():
+            average_dist = sum(distance) / len(distance)
+            if self.sifrank_plus:
+                average_dist = average_dist * position_score[candidate] / average_score
+            dict_candidate_distances[candidate] = average_dist
 
-        return sorted(dict_candidate_distances.items(), key=lambda x: x[1], reverse=True)[:20]
+        return sorted(dict_candidate_distances.items(), key=lambda x: x[1], reverse=True)[:self.k]
 
 
     def pipeline(self, document):
@@ -363,4 +396,7 @@ class SIFRank:
 if __name__ == '__main__':
     text = "Discrete output feedback sliding mode control of second order systems - a moving switching line approach The sliding mode control systems (SMCS) for which the switching variable is designed independent of the initial conditions are known to be sensitive to parameter variations and extraneous disturbances during the reaching phase. For second order systems this drawback is eliminated by using the moving switching line technique where the switching line is initially designed to pass the initial conditions and is subsequently moved towards a predetermined switching line. In this paper, we make use of the above idea of moving switching line together with the reaching law approach to design a discrete output feedback sliding mode control. The main contributions of this work are such that we do not require to use system states as it makes use of only the output samples for designing the controller. and by using the moving switching line a low sensitivity system is obtained through shortening the reaching phase. Simulation results show that the fast output sampling feedback guarantees sliding motion similar to that obtained using state feedback"
 
-    SIFRank(doc_seg=True).pipeline(document=text)
+    nlp = spacy.load("en_core_web_sm")
+    # nlp = None
+
+    SIFRank(k=20, nlp=nlp, sifrank_plus=False).pipeline(document=text)
