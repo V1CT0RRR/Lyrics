@@ -17,9 +17,10 @@ GRAMMAR_3_UNIVERSAL =   "NP: {<NOUN|ADJ>*<NOUN*>}"
 
 class Preprocessing:
     def __init__(self, document,
+                 sent_tokenizer=nltk.tokenize.sent_tokenize,
                  tokenizer=nltk.tokenize.word_tokenize,
                  tagger=nltk.tag.pos_tag,
-                 lemmatizer = nltk.stem.WordNetLemmatizer().lemmatize,
+                 lemmatizer=nltk.stem.WordNetLemmatizer().lemmatize,
                  np_grammar=GRAMMAR_1_NLTK,
                  nlp=None):
         """ Initialize a Preprocessing object
@@ -36,6 +37,7 @@ class Preprocessing:
         self.stopwords = set(nltk.corpus.stopwords.words("english"))
 
         self.tokenizer = tokenizer
+        self.sent_tokenizer = sent_tokenizer
         self.tagger = tagger
         self.lemmatizer = lemmatizer
 
@@ -45,6 +47,7 @@ class Preprocessing:
         self.nlp = nlp
 
         self.pipeline(document)
+
 
     def clean(self, document):
         """ Clean a document by splitting sentences and replacing invalid characters.
@@ -57,10 +60,11 @@ class Preprocessing:
         """
 
         # sentences = document.replace('\n', '. ').split('. ')
-        sentences = nltk.tokenize.sent_tokenize(document.replace('\n', '. '))
+        sentences = self.sent_tokenizer(document.replace('\n', '. '))
         for idx, sentence in enumerate(sentences):
             sentences[idx] = re.sub("[^a-zA-Z0-9'.,\- ]", '', sentence)#.lower()
         return sentences
+
 
     def tokenize(self, sentences, remove_stopwords=False):
         """ Tokenize sentences with the initialized tokenizer.
@@ -83,6 +87,7 @@ class Preprocessing:
             tokenized_sentences.append(tokens)
         return tokenized_sentences
 
+
     def tag(self, tokenized_sentences):
         """ Tag tokens with the initialized tagger.
 
@@ -95,6 +100,7 @@ class Preprocessing:
 
         # return [self.tagger(tokenized_sentence, tagset='universal') for tokenized_sentence in tokenized_sentences]
         return [self.tagger(tokenized_sentence) for tokenized_sentence in tokenized_sentences]
+
 
     def get_np_chunks(self, tokenized_tagged_sentences):
         """ Parse noun-phrase chunks from tokenized-tagged sentences with initialized np-chunk parser.

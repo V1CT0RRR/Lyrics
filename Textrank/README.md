@@ -18,7 +18,7 @@ optional arguments:
   -use_spacy            use spacy language model for preprocessing
 
 sample usage:
-python Textrank/textrank.py -k 20 -document "data/lyrics_dataset.csv" -use_spacy
+python Textrank/textrank.py -k 20 -path "data/lyrics_dataset.csv" -use_spacy
 ```
 
 
@@ -111,14 +111,14 @@ Post-processing with the original greedy merging algorithm gives the following k
 Using modified post-processing by computing ranks of pre-identified noun phrases, we get the following results.
 
 ```
-0.168081: type system
-0.158563: linear diophantine equation
-0.135037: system
-0.133279: linear constraint
-0.132523: strict inequations
-0.131613: solution
-0.129431: mixed type
-0.125403: nonstrict inequations
-0.109757: minimal supporting set
-0.104637: natural number
+0.166343: linear diophantine equations
+0.163355: minimal generating sets
+0.161175: mixed types
+0.148896: strict inequations
+0.148896: nonstrict inequations
+0.141017: natural numbers
+0.141017: upper bounds
+0.141017: linear constraints
+0.105762: algorithms
+0.096407: a minimal supporting set
 ```
