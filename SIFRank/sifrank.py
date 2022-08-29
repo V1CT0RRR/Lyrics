@@ -1,5 +1,8 @@
-from pathlib import Path
+import argparse
 import os, math
+
+import pandas as pd
+from tqdm import tqdm
 
 import nltk
 import torch
@@ -24,7 +27,7 @@ DISIRED_TAGS_2_UNIVERSAL =      ["ADJ", "NOUN", "PROPN", "VERB"]
 dirname = os.path.abspath(os.path.dirname(__file__))
 
 class SIFRank:
-    def __init__(self, k=10,
+    def __init__(self,
                  doc_seg=True,
                  emb_align=True,
                  sifrank_plus=True,
@@ -36,7 +39,6 @@ class SIFRank:
         """ Initialzie a SIFRank object.
 
         Args:
-            k (int, optional): Number of keywords to extract. Defaults to 10.
             doc_seg (bool, optional): Use document segmentation. Defaults to True.
             emb_align (bool, optional): Use embedding alignment. Defaults to True.
             sifrank_plus (bool, optional): Use SIFRank+ with position score. Defaults to True.
@@ -50,7 +52,7 @@ class SIFRank:
         self.considered_tags = DISIRED_TAGS_3_NLTK if not nlp else DISIRED_TAGS_2_UNIVERSAL
         self.lemmatizer = nltk.WordNetLemmatizer().lemmatize
 
-        self.k = k
+        self.cuda_available = torch.cuda.is_available()
 
         self.init_weights(data_path_word_weight, data_path_word_weight_inspec)
         self.init_embeddor(data_path_elmo_weights, data_path_elmo_options)
@@ -120,7 +122,10 @@ class SIFRank:
         """
 
         if embeddor_type == 'elmo':
-            self.embeddor = ElmoEmbedder(data_path_elmo_options, data_path_elmo_weights)
+            if self.cuda_available:
+                self.embeddor = ElmoEmbedder(data_path_elmo_options, data_path_elmo_weights, cuda_device=0)
+            else:
+                self.embeddor = ElmoEmbedder(data_path_elmo_options, data_path_elmo_weights)
 
 
     def prepare_sent_segments(self, tokenized_sent):
@@ -247,6 +252,8 @@ class SIFRank:
 
         e_test_list = []
         result = torch.zeros((3, 1024))
+        if self.cuda_available:
+            result = result.to(0)
         for i in range(0, 3):
             for j in range(num_words):
                 if tagged_tokens[j][1] in self.considered_tags:
@@ -274,6 +281,8 @@ class SIFRank:
 
         e_test_list = []
         result = torch.zeros((3, 1024))
+        if self.cuda_available:
+            result = result.to(0)
         for i in range(0, 3):
             for j in range(start, end):
                 e_test = embedding_list[i][j]
@@ -339,13 +348,14 @@ class SIFRank:
         return sent_embedding, candidate_embedding_list
 
 
-    def get_ranks(self, preprocessed, sent_embedding, candidate_embedding_list):
+    def get_ranks(self, preprocessed, sent_embedding, candidate_embedding_list, k):
         """ Compute ranks based on sentence embedding and candidate embeddings.
 
         Args:
             preprocessed (Preprocessing): preprocessed document.
             sent_embedding (torch.Tensor): weighted average sentence embedding.
             candidate_embedding_list (List(torch.Tensor)): weighted average candidate embeddings.
+            k (int): Number of keywords to extract.
 
         Returns:
             List(tuple(str, float)): candidates and their scores
@@ -373,30 +383,75 @@ class SIFRank:
                 average_dist = average_dist * position_score[candidate] / average_score
             dict_candidate_distances[candidate] = average_dist
 
-        return sorted(dict_candidate_distances.items(), key=lambda x: x[1], reverse=True)[:self.k]
+        return sorted(dict_candidate_distances.items(), key=lambda x: x[1], reverse=True)[:k]
 
 
-    def pipeline(self, document):
+    def pipeline(self, document, k=10):
         """ Pipeline for the SIFRank algorithm.
 
         Args:
             document (str): Document to find keywords from.
+            k (int, optional): Number of keywords to extract. Defaults to 10.
         """
 
         preprocessed = Preprocessing(document, nlp=self.nlp)
 
         sent_embedding, candidate_embedding_list = self.get_sent_candidate_embedding(preprocessed)
 
-        self.result = self.get_ranks(preprocessed, sent_embedding, candidate_embedding_list)
+        self.candidates = self.get_ranks(preprocessed, sent_embedding, candidate_embedding_list, k)
 
-        for word, rank in self.result:
-            print("{:.5f}: {}".format(rank, word))
+        return ", ".join([candidate for candidate, _ in self.candidates])
+
+
+    def show_candidates(self):
+        """ Display found keywords
+        """        
+
+        print()
+        for candidate, score in self.candidates:
+            print("{:<4f}: {}".format(score, candidate))
 
 
 if __name__ == '__main__':
-    text = "Discrete output feedback sliding mode control of second order systems - a moving switching line approach The sliding mode control systems (SMCS) for which the switching variable is designed independent of the initial conditions are known to be sensitive to parameter variations and extraneous disturbances during the reaching phase. For second order systems this drawback is eliminated by using the moving switching line technique where the switching line is initially designed to pass the initial conditions and is subsequently moved towards a predetermined switching line. In this paper, we make use of the above idea of moving switching line together with the reaching law approach to design a discrete output feedback sliding mode control. The main contributions of this work are such that we do not require to use system states as it makes use of only the output samples for designing the controller. and by using the moving switching line a low sensitivity system is obtained through shortening the reaching phase. Simulation results show that the fast output sampling feedback guarantees sliding motion similar to that obtained using state feedback"
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument("-k", type=int, help="number of keyword candidates to extract. default to 10", default=10)
+    argparser.add_argument("-path", type=str, help="path to the lyrics csv file, default to none", default="")
+    argparser.add_argument("-document", type=str, help="document to extract keywords from. default to none", default="")
+    argparser.add_argument('-doc_seg', help="use document segmentation to speed up embedding. default to true", action='store_true')
+    argparser.set_defaults(doc_seg=True)
+    argparser.add_argument('-emb_align', help="embedding alignment. default to true", action='store_true')
+    argparser.set_defaults(emb_align=True)
+    argparser.add_argument('-sifrank_plus', help="use sifrank+ with position score. default to true", action='store_true')
+    argparser.set_defaults(sifrank_plus=True)
+    argparser.add_argument('-use_spacy', help="use spacy language model for preprocessing", action='store_true')
+    argparser.set_defaults(use_spacy=False)
+    args = argparser.parse_args()
 
-    nlp = spacy.load("en_core_web_sm")
-    # nlp = None
+    nlp = None
+    if args.use_spacy:
+        nlp = spacy.load("en_core_web_sm")
 
-    SIFRank(k=20, nlp=nlp, sifrank_plus=False).pipeline(document=text)
+    sifrank = SIFRank(doc_seg=args.doc_seg,
+                      emb_align=args.emb_align,
+                      sifrank_plus=args.sifrank_plus,
+                      nlp=nlp)
+    if len(args.document) > 0:
+        sifrank.pipeline(document=args.document, k=args.k)
+        sifrank.show_candidates()
+    elif len(args.path) > 0:
+        try:
+            df_lyrics = pd.read_csv(args.path, encoding= 'unicode_escape')
+            lyric_keywords = []
+            for lyric in tqdm(df_lyrics['lyrics']):
+                keywords = sifrank.pipeline(document=lyric, k=args.k)
+                lyric_keywords.append(keywords)
+            df_lyrics['keywords'] = lyric_keywords
+            df_lyrics.to_csv(args.path.split(".csv")[0] + "_sifrank.csv", index=False)
+        except FileNotFoundError as e:
+            print("File not found")
+        except Exception as e:
+            print("Error opening file")
+    else:
+        text = "Discrete output feedback sliding mode control of second order systems - a moving switching line approach The sliding mode control systems (SMCS) for which the switching variable is designed independent of the initial conditions are known to be sensitive to parameter variations and extraneous disturbances during the reaching phase. For second order systems this drawback is eliminated by using the moving switching line technique where the switching line is initially designed to pass the initial conditions and is subsequently moved towards a predetermined switching line. In this paper, we make use of the above idea of moving switching line together with the reaching law approach to design a discrete output feedback sliding mode control. The main contributions of this work are such that we do not require to use system states as it makes use of only the output samples for designing the controller. and by using the moving switching line a low sensitivity system is obtained through shortening the reaching phase. Simulation results show that the fast output sampling feedback guarantees sliding motion similar to that obtained using state feedback"
+        sifrank.pipeline(document=text)
+        sifrank.show_candidates()

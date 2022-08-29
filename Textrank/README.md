@@ -44,6 +44,23 @@ From single keywords to meaningful key phrases, TextRank proposed to aggregrate 
 
 One limitation we noticed is that the default algorithm could not extract meaningful entity names (e.g. lyrics of *shape of you* from the dataset) by greedily combining adjacent keywords. We referred to the implementation of pytextrank and used its modified post-processing technique by evaluating ranks for meaningful entities extracted in the early preprocessing step.
 
+## Evaluation
+Evaluation is done on the [Inspec](https://huggingface.co/datasets/midas/inspec) dataset with 2000 (1000 training, 500 test and 500 valid) abstracts from scientific papers and key phrases annotated by professional indexers.
+
+|    |   precision |   recall |   accuracy | method   | modified   |   window_size | spacy_preprocessing   |
+|---:|------------:|---------:|-----------:|:---------|:-----------|--------------:|:----------------------|
+|  0 |    0.279819 | 0.263457 |   **0.271391** | textrank | True       |             2 | True                  |
+|  1 |    0.276471 | 0.260304 |   0.268144 | textrank | True       |             3 | True                  |
+|  2 |    0.276471 | 0.260284 |   0.268133 | textrank | True       |             4 | True                  |
+|  3 |    0.250439 | 0.235961 |   0.242985 | textrank | True       |             3 | False                 |
+|  4 |    0.250021 | 0.235475 |   0.24253  | textrank | True       |             2 | False                 |
+|  5 |    0.247931 | 0.23358  |   0.240542 | textrank | True       |             4 | False                 |
+|  6 |    0.215591 | 0.204157 |   0.209719 | spacy    | False      |             2 | False                 |
+|  7 |    0.110176 | 0.104078 |   0.10704  | textrank | False      |             4 | False                 |
+|  8 |    0.108342 | 0.102322 |   0.105246 | textrank | False      |             3 | False                 |
+|  9 |    0.107176 | 0.101212 |   0.104108 | textrank | False      |             2 | False                 |
+
+
 ## Example
 
 > Compatibility of systems of linear constraints over the set of natural numbers. Criteria of compatibility of a system of linear Diophantine equations, strict inequations, and nonstrict inequations are considered. Upper bounds for components of a minimal set of solutions and algorithms of construction of minimal generating sets of solutions for all types of systems are given. These criteria and the corresponding algorithms for constructing a minimal supporting set of solutions can be used in solving all the considered types systems and systems of mixed types.
